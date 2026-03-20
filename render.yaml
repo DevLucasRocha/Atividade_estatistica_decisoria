@@ -1,0 +1,14 @@
+services:
+  # Backend FastAPI
+  - type: web
+    name: estatistica-descritiva-api
+    runtime: python
+    region: oregon
+    rootDir: back_end
+
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Calculadora de Estatística - Dados Agrupados</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <h2>Estatística Descritiva: Medidas de Posição</h2>
+    
+    <div id="inputs">
+        <div class="input-group">
+            <input type="number" id="inf" placeholder="Limite Inferior (ex: 10)">
+            <input type="number" id="sup" placeholder="Limite Superior (ex: 20)">
+            <input type="number" id="freq" placeholder="Frequência (fi)">
+            <button class="btn-add" onclick="addRow()">Adicionar Classe</button>
+        </div>
+    </div>
+
+    <table id="tabelaDados">
+        <thead>
+            <tr>
+                <th>Classes (Idades)</th>
+                <th>Frequência (fi)</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            </tbody>
+    </table>
+
+    <button class="btn-calc" onclick="calculate()">CALCULAR INDICADORES</button>
+
+    <div id="resultadoArea" style="display:none;">
+        <h3>Resultados da Análise</h3>
+        <div class="results-card" id="statsGrid"></div>
+    </div>
+</div>
+
+<script>
+    // Configuração: altere para a URL do seu backend em produção
+    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://127.0.0.1:8000'
+        : 'https://seu-backend.onrender.com';  // Substitua pela URL do Render após o deploy
+
+    let dataset = [];
+
+    function addRow() {
+        const inf = document.getElementById('inf').value;
+        const sup = document.getElementById('sup').value;
+        const freq = document.getElementById('freq').value;
+
+        if(!inf || !sup || !freq) return alert("Preencha todos os campos!");
+
+        const row = { 
+            limite_inferior: parseFloat(inf), 
+            limite_superior: parseFloat(sup), 
+            frequencia: parseInt(freq) 
+        };
+        
+        dataset.push(row);
+        updateTable();
+        
+        // Limpa inputs
+        document.getElementById('inf').value = '';
+        document.getElementById('sup').value = '';
+        document.getElementById('freq').value = '';
+    }
+
+    function updateTable() {
+        const tbody = document.querySelector("#tabelaDados tbody");
+        tbody.innerHTML = "";
+        dataset.forEach((item, index) => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${item.limite_inferior} ⊢ ${item.limite_superior}</td>
+                    <td>${item.frequencia}</td>
+                    <td><button onclick="removeRow(${index})" style="background:#e74c3c; color:white; border:none; padding:5px; border-radius:3px; cursor:pointer;">Remover</button></td>
+                </tr>
+            `;
+        });
+    }
+
+    function removeRow(index) {
+        dataset.splice(index, 1);
+        updateTable();
+    }
+
+    async function calculate() {
+        if(dataset.length === 0) return alert("Adicione pelo menos uma classe!");
+
+        try {
+            const response = await fetch(`${API_URL}/calcular-estatisticas`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ classes: dataset })
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                let msg = "Erro na API";
+                if (data.detail) {
+                    msg = Array.isArray(data.detail) ? data.detail[0]?.msg || msg : data.detail;
+                }
+                return alert("Erro: " + (typeof msg === 'string' ? msg : JSON.stringify(msg)));
+            }
+
+            displayResults(data);
+        } catch (error) {
+            console.error("Erro na API:", error);
+            alert("Não foi possível conectar ao servidor. Verifique se o backend está rodando e a URL está correta.");
+        }
+    }
+
+    function displayResults(data) {
+        const grid = document.getElementById('statsGrid');
+        document.getElementById('resultadoArea').style.display = 'block';
+        
+        const labels = {
+            n_total: "Total (n)",
+            media: "Média (x̄)",
+            mediana: "Mediana (Md)",
+            moda_bruta: "Moda (Mo)",
+            variancia: "Variância (s²)",
+            desvio_padrao: "Desvio Padrão (s)"
+        };
+
+        grid.innerHTML = "";
+        for (const [key, value] of Object.entries(data)) {
+            grid.innerHTML += `
+                <div class="stat-item">
+                    <strong>${labels[key]}</strong><br>
+                    <span>${value}</span>
+                </div>
+            `;
+        }
+    }
+</script>
+
+</body>
+</html>
